@@ -2683,9 +2683,9 @@ void Map::ScriptsProcess()
                 }
 
                 if (step.script->faction.factionId)
-                    pOwner->setFaction(step.script->faction.factionId);
+                    pOwner->SetFactionTemporary(step.script->faction.factionId, step.script->faction.flags);
                 else
-                    pOwner->setFaction(pOwner->GetCreatureInfo()->faction_A);
+                    pOwner->ClearTemporaryFaction();
 
                 break;
             }
@@ -2897,7 +2897,7 @@ void Map::ScriptsProcess()
                     }
                     else
                     {
-                        // No buddy found, so don't do anything                     
+                        // No buddy found, so don't do anything
                         break;
                     }
                 }
