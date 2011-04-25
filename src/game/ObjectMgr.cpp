@@ -725,6 +725,12 @@ void ObjectMgr::LoadCreatureTemplates()
             const_cast<CreatureInfo*>(cInfo)->MovementType = IDLE_MOTION_TYPE;
         }
 
+        if (cInfo->vehicleId && !sVehicleStore.LookupEntry(cInfo->vehicleId))
+        {
+            sLog.outErrorDb("Creature (Entry: %u) has non-existing vehicle_id (%u), set to 0.", cInfo->Entry, cInfo->vehicleId);
+            const_cast<CreatureInfo*>(cInfo)->vehicleId = 0;
+        }
+
         if(cInfo->equipmentId > 0)                          // 0 no equipment
         {
             if(!GetEquipmentInfo(cInfo->equipmentId))
@@ -3413,7 +3419,7 @@ void ObjectMgr::LoadArenaTeams()
 
     //                                                     0                      1    2           3    4               5
     QueryResult *result = CharacterDatabase.Query( "SELECT arena_team.arenateamid,name,captainguid,type,BackgroundColor,EmblemStyle,"
-    //   6           7           8            9      10    	 11  	   12  		    13    	    14
+    //   6           7           8            9      10         11         12              13            14
         "EmblemColor,BorderStyle,BorderColor, rating,games_week,wins_week,games_season,wins_season,rank "
         "FROM arena_team LEFT JOIN arena_team_stats ON arena_team.arenateamid = arena_team_stats.arenateamid ORDER BY arena_team.arenateamid ASC" );
 
