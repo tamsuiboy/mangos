@@ -638,7 +638,7 @@ bool ChatHandler::HandleReloadSpellScriptTargetCommand(char* /*args*/)
 
 bool ChatHandler::HandleReloadSpellTargetPositionCommand(char* /*args*/)
 {
-    sLog.outString( "Re-Loading Spell target coordinates..." );
+    sLog.outString( "Re-Loading spell target destination coordinates..." );
     sSpellMgr.LoadSpellTargetPositions();
     SendGlobalSysMessage("DB table `spell_target_position` (destination coordinates for spell targets) reloaded.");
     return true;
@@ -3608,7 +3608,12 @@ bool ChatHandler::HandleGuildUninviteCommand(char *args)
     if (!targetGuild)
         return false;
 
-    targetGuild->DelMember(target_guid);
+    if (targetGuild->DelMember(target_guid))
+    {
+        targetGuild->Disband();
+        delete targetGuild;
+    }
+
     return true;
 }
 
@@ -3651,7 +3656,7 @@ bool ChatHandler::HandleGuildDeleteCommand(char* args)
         return false;
 
     char* guildStr = ExtractQuotedArg(&args);
-    if(!guildStr)
+    if (!guildStr)
         return false;
 
     std::string gld = guildStr;
@@ -3660,7 +3665,8 @@ bool ChatHandler::HandleGuildDeleteCommand(char* args)
     if (!targetGuild)
         return false;
 
-    targetGuild->Disband ();
+    targetGuild->Disband();
+    delete targetGuild;
 
     return true;
 }
@@ -3671,8 +3677,7 @@ bool ChatHandler::HandleGetDistanceCommand(char* args)
 
     if (*args)
     {
-        ObjectGuid guid = ExtractGuidFromLink(&args);
-        if (!guid.IsEmpty())
+        if (ObjectGuid guid = ExtractGuidFromLink(&args))
             obj = (WorldObject*)m_session->GetPlayer()->GetObjectByTypeMask(guid, TYPEMASK_CREATURE_OR_GAMEOBJECT);
 
         if(!obj)
@@ -3710,20 +3715,20 @@ bool ChatHandler::HandleDieCommand(char* /*args*/)
 {
     Unit* target = getSelectedUnit();
 
-    if(!target || m_session->GetPlayer()->GetSelectionGuid().IsEmpty())
+    if (!target || !m_session->GetPlayer()->GetSelectionGuid())
     {
         SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
         SetSentErrorMessage(true);
         return false;
     }
 
-    if(target->GetTypeId()==TYPEID_PLAYER)
+    if (target->GetTypeId()==TYPEID_PLAYER)
     {
         if (HasLowerSecurity((Player*)target, ObjectGuid(), false))
             return false;
     }
 
-    if( target->isAlive() )
+    if (target->isAlive())
     {
         m_session->GetPlayer()->DealDamage(target, target->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
     }
@@ -3738,7 +3743,7 @@ bool ChatHandler::HandleDamageCommand(char* args)
 
     Unit* target = getSelectedUnit();
 
-    if (!target || m_session->GetPlayer()->GetSelectionGuid().IsEmpty())
+    if (!target || !m_session->GetPlayer()->GetSelectionGuid())
     {
         SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
         SetSentErrorMessage(true);
@@ -4106,11 +4111,11 @@ bool ChatHandler::HandleNpcInfoCommand(char* /*args*/)
             break;
 
     if (diff < MAX_DIFFICULTY)
-        PSendSysMessage(LANG_NPCINFO_CHAR_DIFFICULTY,  target->GetGUIDLow(), faction, npcflags,
+        PSendSysMessage(LANG_NPCINFO_CHAR_DIFFICULTY, target->GetGuidStr().c_str(), faction, npcflags,
             Entry, target->GetCreatureInfo()->Entry, diff,
             displayid, nativeid);
     else
-        PSendSysMessage(LANG_NPCINFO_CHAR,  target->GetGUIDLow(), faction, npcflags, Entry, displayid, nativeid);
+        PSendSysMessage(LANG_NPCINFO_CHAR, target->GetGuidStr().c_str(), faction, npcflags, Entry, displayid, nativeid);
 
     PSendSysMessage(LANG_NPCINFO_LEVEL, target->getLevel());
     PSendSysMessage(LANG_NPCINFO_HEALTH,target->GetCreateHealth(), target->GetMaxHealth(), target->GetHealth());
@@ -4494,6 +4499,12 @@ bool ChatHandler::HandleBankCommand(char* /*args*/)
 {
     m_session->SendShowBank(m_session->GetPlayer()->GetObjectGuid());
 
+    return true;
+}
+
+bool ChatHandler::HandleMailBoxCommand(char* /*args*/)
+{
+    m_session->SendShowMailBox(m_session->GetPlayer()->GetObjectGuid());
     return true;
 }
 
@@ -4890,7 +4901,7 @@ bool ChatHandler::HandleResetSpecsCommand(char* args)
             target->SendTalentsInfoData(true);
         return true;
     }
-    else if (!target_guid.IsEmpty())
+    else if (target_guid)
     {
         uint32 at_flags = AT_LOGIN_RESET_TALENTS | AT_LOGIN_RESET_PET_TALENTS;
         CharacterDatabase.PExecute("UPDATE characters SET at_login = at_login | '%u' WHERE guid = '%u'", at_flags, target_guid.GetCounter());
@@ -4985,7 +4996,7 @@ bool ChatHandler::HandleResetAllCommand(char* args)
 
     CharacterDatabase.PExecute("UPDATE characters SET at_login = at_login | '%u' WHERE (at_login & '%u') = '0'", atLogin, atLogin);
     HashMapHolder<Player>::MapType const& plist = sObjectAccessor.GetPlayers();
-    for(HashMapHolder<Player>::MapType::const_iterator itr = plist.begin(); itr != plist.end(); ++itr)
+    for (HashMapHolder<Player>::MapType::const_iterator itr = plist.begin(); itr != plist.end(); ++itr)
         itr->second->SetAtLoginFlag(atLogin);
 
     return true;
@@ -5712,7 +5723,7 @@ bool ChatHandler::HandleRespawnCommand(char* /*args*/)
 
     // accept only explicitly selected target (not implicitly self targeting case)
     Unit* target = getSelectedUnit();
-    if (!pl->GetSelectionGuid().IsEmpty() && target)
+    if (pl->GetSelectionGuid() && target)
     {
         if (target->GetTypeId() != TYPEID_UNIT)
         {
@@ -5862,8 +5873,8 @@ bool ChatHandler::HandlePDumpWriteCommand(char *args)
             return false;
         }
 
-        guid = sObjectMgr.GetPlayerGUIDByName(name);
-        if (guid.IsEmpty())
+        guid = sObjectMgr.GetPlayerGuidByName(name);
+        if (!guid)
         {
             PSendSysMessage(LANG_PLAYER_NOT_FOUND);
             SetSentErrorMessage(true);

@@ -307,7 +307,7 @@ void WorldSession::HandleAuctionSellItem(WorldPacket & recv_data)
     {
         ObjectGuid itemGuid = guids[i];
 
-        if (itemGuid.IsEmpty())
+        if (!itemGuid)
             continue;
 
         uint32 stackSize = stackSizes[i];
@@ -365,6 +365,7 @@ void WorldSession::HandleAuctionSellItem(WorldPacket & recv_data)
             continue;
 
         Item *newItem = it->CloneItem(stackSize, pl);
+        newItem->RemoveFromUpdateQueueOf(pl);               // item not planned to adding to inventory
 
         pl->DestroyItemCount(it, stackSize, true);
 

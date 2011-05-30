@@ -118,7 +118,8 @@ public:
         BOTSTATE_COMBAT,            // bot is in combat
         BOTSTATE_DEAD,              // we are dead and wait for becoming ghost
         BOTSTATE_DEADRELEASED,      // we released as ghost and wait to revive
-        BOTSTATE_LOOTING            // looting mode, used just after combat
+        BOTSTATE_LOOTING,           // looting mode, used just after combat
+        BOTSTATE_FLYING             // bot is flying
     };
 
     enum CollectionFlags
@@ -140,9 +141,10 @@ public:
     };
 
     typedef std::map<uint32, uint32> BotNeedItem;
-    typedef std::list<uint64> BotLootCreature;
+    typedef std::list<ObjectGuid> BotLootTarget;
     typedef std::list<uint32> BotLootEntry;
     typedef std::list<uint32> BotSpellList;
+    typedef std::vector<uint32> BotTaxiNode;
 
     // attacker query used in PlayerbotAI::FindAttacker()
     enum ATTACKERINFOTYPE
@@ -162,7 +164,7 @@ public:
         uint32 count;                 // number of units attacking
         uint32 source;                // 1=bot, 2=master, 3=group
     };
-    typedef std::map<uint64, AttackerInfo> AttackerInfoList;
+    typedef std::map<ObjectGuid, AttackerInfo> AttackerInfoList;
     typedef std::map<uint32, float> SpellRanges;
 
 public:
@@ -214,7 +216,7 @@ public:
     uint32 extractMoney(const std::string& text) const;
 
     // extracts gameobject info from link
-    void extractGOinfo(const std::string& text, std::list<uint64>& m_lootTargets) const;
+    void extractGOinfo(const std::string& text, BotLootTarget& m_lootTargets) const;
 
     // finds items in bots equipment and adds them to foundItemList, removes found items from itemIdSearchList
     void findItemsInEquip(std::list<uint32>& itemIdSearchList, std::list<Item*>& foundItemList) const;
@@ -301,9 +303,12 @@ public:
     void SetState(BotState state);
     void SetQuestNeedItems();
     void SendQuestItemList(Player& player);
+    bool IsInQuestItemList(uint32 itemid) { return m_needItemList.find(itemid) != m_needItemList.end(); };
     void SendOrders(Player& player);
     bool FollowCheckTeleport(WorldObject &obj);
     void DoLoot();
+    void DoFlight();
+    void GetTaxi(ObjectGuid guid, BotTaxiNode& nodes);
 
     bool HasCollectFlag(uint8 flag) { return m_collectionFlags & flag; }
     void SetCollectFlag(uint8 flag)
@@ -372,11 +377,12 @@ private:
     BotNeedItem m_needItemList;
 
     // list of creatures we recently attacked and want to loot
-    BotLootCreature m_lootTargets;      // list of creatures
+    BotLootTarget m_lootTargets;        // list of targets
     BotSpellList m_spellsToLearn;       // list of spells
     ObjectGuid m_lootCurrent;           // current remains of interest
     ObjectGuid m_lootPrev;              // previous loot
     BotLootEntry m_collectObjects;      // object entries searched for in findNearbyGO
+    BotTaxiNode m_taxiNodes;            // flight node chain;
 
     uint8 m_collectionFlags;            // what the bot should look for to loot
 
@@ -388,7 +394,8 @@ private:
     // if master commands bot to do something, store here until updateAI
     // can do it
     uint32 m_spellIdCommand;
-    uint64 m_targetGuidCommand;
+    ObjectGuid m_targetGuidCommand;
+    ObjectGuid m_taxiMaster;
 
     AttackerInfoList m_attackerInfo;
 

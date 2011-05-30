@@ -177,7 +177,14 @@ void WorldSession::HandleGuildRemoveOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    guild->DelMember(slot->guid);
+    // possible last member removed, do cleanup, and no need events
+    if (guild->DelMember(slot->guid))
+    {
+        guild->Disband();
+        delete guild;
+        return;
+    }
+
     // Put record into guild log
     guild->LogGuildEvent(GUILD_EVENT_LOG_UNINVITE_PLAYER, GetPlayer()->GetObjectGuid(), slot->guid);
 
@@ -376,16 +383,23 @@ void WorldSession::HandleGuildLeaveOpcode(WorldPacket& /*recvPacket*/)
     if (_player->GetObjectGuid() == guild->GetLeaderGuid())
     {
         guild->Disband();
+        delete guild;
         return;
     }
 
-    guild->DelMember(_player->GetObjectGuid());
+    SendGuildCommandResult(GUILD_QUIT_S, guild->GetName(), ERR_PLAYER_NO_MORE_IN_GUILD);
+
+    if (guild->DelMember(_player->GetObjectGuid()))
+    {
+        guild->Disband();
+        delete guild;
+        return;
+    }
+
     // Put record into guild log
     guild->LogGuildEvent(GUILD_EVENT_LOG_LEAVE_GUILD, _player->GetObjectGuid());
 
-    guild->BroadcastEvent(GE_LEFT, _player->GetGUID(), _player->GetName());
-
-    SendGuildCommandResult(GUILD_QUIT_S, guild->GetName(), ERR_PLAYER_NO_MORE_IN_GUILD);
+    guild->BroadcastEvent(GE_LEFT, _player->GetObjectGuid(), _player->GetName());
 }
 
 void WorldSession::HandleGuildDisbandOpcode(WorldPacket& /*recvPacket*/)
@@ -406,6 +420,7 @@ void WorldSession::HandleGuildDisbandOpcode(WorldPacket& /*recvPacket*/)
     }
 
     guild->Disband();
+    delete guild;
 
     DEBUG_LOG("WORLD: Guild Successfully Disbanded");
 }
@@ -805,11 +820,11 @@ void WorldSession::HandleGuildBankerActivate( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: Received (CMSG_GUILD_BANKER_ACTIVATE)");
 
-    uint64 GoGuid;
+    ObjectGuid goGuid;
     uint8  unk;
-    recv_data >> GoGuid >> unk;
+    recv_data >> goGuid >> unk;
 
-    if (!GetPlayer()->GetGameObjectIfCanInteractWith(GoGuid, GAMEOBJECT_TYPE_GUILD_BANK))
+    if (!GetPlayer()->GetGameObjectIfCanInteractWith(goGuid, GAMEOBJECT_TYPE_GUILD_BANK))
         return;
 
     if (uint32 GuildId = GetPlayer()->GetGuildId())
@@ -829,11 +844,11 @@ void WorldSession::HandleGuildBankQueryTab( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: Received (CMSG_GUILD_BANK_QUERY_TAB)");
 
-    uint64 GoGuid;
+    ObjectGuid goGuid;
     uint8 TabId, unk1;
-    recv_data >> GoGuid >> TabId >> unk1;
+    recv_data >> goGuid >> TabId >> unk1;
 
-    if (!GetPlayer()->GetGameObjectIfCanInteractWith(GoGuid, GAMEOBJECT_TYPE_GUILD_BANK))
+    if (!GetPlayer()->GetGameObjectIfCanInteractWith(goGuid, GAMEOBJECT_TYPE_GUILD_BANK))
         return;
 
     uint32 GuildId = GetPlayer()->GetGuildId();
@@ -857,14 +872,14 @@ void WorldSession::HandleGuildBankDepositMoney( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: Received (CMSG_GUILD_BANK_DEPOSIT_MONEY)");
 
-    uint64 GoGuid;
+    ObjectGuid goGuid;
     uint32 money;
-    recv_data >> GoGuid >> money;
+    recv_data >> goGuid >> money;
 
     if (!money)
         return;
 
-    if (!GetPlayer()->GetGameObjectIfCanInteractWith(GoGuid, GAMEOBJECT_TYPE_GUILD_BANK))
+    if (!GetPlayer()->GetGameObjectIfCanInteractWith(goGuid, GAMEOBJECT_TYPE_GUILD_BANK))
         return;
 
     if (GetPlayer()->GetMoney() < money)
@@ -908,14 +923,14 @@ void WorldSession::HandleGuildBankWithdrawMoney( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: Received (CMSG_GUILD_BANK_WITHDRAW_MONEY)");
 
-    uint64 GoGuid;
+    ObjectGuid goGuid;
     uint32 money;
-    recv_data >> GoGuid >> money;
+    recv_data >> goGuid >> money;
 
     if (!money)
         return;
 
-    if (!GetPlayer()->GetGameObjectIfCanInteractWith(GoGuid, GAMEOBJECT_TYPE_GUILD_BANK))
+    if (!GetPlayer()->GetGameObjectIfCanInteractWith(goGuid, GAMEOBJECT_TYPE_GUILD_BANK))
         return;
 
     uint32 GuildId = GetPlayer()->GetGuildId();
@@ -961,7 +976,7 @@ void WorldSession::HandleGuildBankSwapItems( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: Received (CMSG_GUILD_BANK_SWAP_ITEMS)");
 
-    uint64 GoGuid;
+    ObjectGuid goGuid;
     uint8 BankToBank;
 
     uint8 BankTab, BankTabSlot, AutoStore;
@@ -973,7 +988,7 @@ void WorldSession::HandleGuildBankSwapItems( WorldPacket & recv_data )
     uint32 AutoStoreCount = 0;
     uint32 SplitedAmount = 0;
 
-    recv_data >> GoGuid >> BankToBank;
+    recv_data >> goGuid >> BankToBank;
 
     uint32 GuildId = GetPlayer()->GetGuildId();
     if (!GuildId)
@@ -1037,7 +1052,7 @@ void WorldSession::HandleGuildBankSwapItems( WorldPacket & recv_data )
         }
     }
 
-    if (!GetPlayer()->GetGameObjectIfCanInteractWith(GoGuid, GAMEOBJECT_TYPE_GUILD_BANK))
+    if (!GetPlayer()->GetGameObjectIfCanInteractWith(goGuid, GAMEOBJECT_TYPE_GUILD_BANK))
         return;
 
     // Bank <-> Bank
@@ -1067,13 +1082,13 @@ void WorldSession::HandleGuildBankBuyTab( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: Received (CMSG_GUILD_BANK_BUY_TAB)");
 
-    uint64 GoGuid;
+    ObjectGuid goGuid;
     uint8 TabId;
 
-    recv_data >> GoGuid;
+    recv_data >> goGuid;
     recv_data >> TabId;
 
-    if (!GetPlayer()->GetGameObjectIfCanInteractWith(GoGuid, GAMEOBJECT_TYPE_GUILD_BANK))
+    if (!GetPlayer()->GetGameObjectIfCanInteractWith(goGuid, GAMEOBJECT_TYPE_GUILD_BANK))
         return;
 
     uint32 GuildId = GetPlayer()->GetGuildId();
@@ -1107,23 +1122,23 @@ void WorldSession::HandleGuildBankUpdateTab( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: Received (CMSG_GUILD_BANK_UPDATE_TAB)");
 
-    uint64 GoGuid;
+    ObjectGuid goGuid;
     uint8 TabId;
     std::string Name;
     std::string IconIndex;
 
-    recv_data >> GoGuid;
+    recv_data >> goGuid;
     recv_data >> TabId;
     recv_data >> Name;
     recv_data >> IconIndex;
 
-    if(Name.empty())
+    if (Name.empty())
         return;
 
-    if(IconIndex.empty())
+    if (IconIndex.empty())
         return;
 
-    if (!GetPlayer()->GetGameObjectIfCanInteractWith(GoGuid, GAMEOBJECT_TYPE_GUILD_BANK))
+    if (!GetPlayer()->GetGameObjectIfCanInteractWith(goGuid, GAMEOBJECT_TYPE_GUILD_BANK))
         return;
 
     uint32 GuildId = GetPlayer()->GetGuildId();

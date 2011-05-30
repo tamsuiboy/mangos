@@ -221,7 +221,7 @@ enum AreaFlags
     AREA_FLAG_SLAVE_CAPITAL         = 0x00000008,           // city and city subsones
     AREA_FLAG_UNK3                  = 0x00000010,           // can't find common meaning
     AREA_FLAG_SLAVE_CAPITAL2        = 0x00000020,           // slave capital city flag?
-    AREA_FLAG_UNK4                  = 0x00000040,           // many zones have this flag
+    AREA_FLAG_DUEL                  = 0x00000040,           // zones where duels allowed
     AREA_FLAG_ARENA                 = 0x00000080,           // arena, both instanced and world arenas
     AREA_FLAG_CAPITAL               = 0x00000100,           // main capital city flag
     AREA_FLAG_CITY                  = 0x00000200,           // only for one zone named "City" (where it located?)
@@ -420,7 +420,7 @@ enum SpellCastTargetFlags
     TARGET_FLAG_UNK2            = 0x00010000,               // pguid, not used in any spells as of 3.0.3 (can be set dynamically)
     TARGET_FLAG_GLYPH           = 0x00020000,               // used in glyph spells
     TARGET_FLAG_UNK3            = 0x00040000,               //
-    TARGET_FLAG_UNK4            = 0x00080000                // uint32, loop { vec3, guid -> if guid == 0 break }
+    TARGET_FLAG_VISUAL_CHAIN    = 0x00080000                // uint32, loop { vec3, guid -> if guid == 0 break }
 };
 
 enum SpellEffectIndex

@@ -35,7 +35,7 @@ void WorldSession::HandleAutostoreLootItemOpcode( WorldPacket & recv_data )
 {
     DEBUG_LOG("WORLD: CMSG_AUTOSTORE_LOOT_ITEM");
     Player  *player =   GetPlayer();
-    ObjectGuid lguid = player->GetLootGUID();
+    ObjectGuid lguid = player->GetLootGuid();
     Loot    *loot;
     uint8    lootSlot;
     Item* pItem = NULL;
@@ -179,8 +179,8 @@ void WorldSession::HandleLootMoneyOpcode( WorldPacket & /*recv_data*/ )
     DEBUG_LOG("WORLD: CMSG_LOOT_MONEY");
 
     Player *player = GetPlayer();
-    ObjectGuid guid = player->GetLootGUID();
-    if (guid.IsEmpty())
+    ObjectGuid guid = player->GetLootGuid();
+    if (!guid)
         return;
 
     Loot *pLoot = NULL;
@@ -234,6 +234,9 @@ void WorldSession::HandleLootMoneyOpcode( WorldPacket & /*recv_data*/ )
 
     if (pLoot)
     {
+        // This portion with SMSG_LOOT_MONEY_NOTIFY is possibly in wrong order.
+        // Apparently, SMSG_LOOT_MONEY_NOTIFY is sent after SMSG_LOOT_CLEAR_MONEY as
+        // example (same with SMSG_LOOT_LIST which is normally last when it's sent)
         if (!guid.IsItem() && player->GetGroup())           //item can be looted only single player
         {
             Group *group = player->GetGroup();
@@ -254,14 +257,21 @@ void WorldSession::HandleLootMoneyOpcode( WorldPacket & /*recv_data*/ )
             {
                 (*i)->ModifyMoney( money_per_player );
                 (*i)->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, money_per_player);
-                //Offset surely incorrect, but works
-                WorldPacket data( SMSG_LOOT_MONEY_NOTIFY, 4 );
+
+                WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4+1);
                 data << uint32(money_per_player);
-                (*i)->GetSession()->SendPacket( &data );
+                data << uint8(0);                           // Control the text displayed, but apparently always 0 in group cases
+
+                (*i)->GetSession()->SendPacket(&data);
             }
         }
         else
         {
+            WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4+1);
+            data << uint32(pLoot->gold);
+            data << uint8(1);                               // 1 is "you loot..."
+            player->GetSession()->SendPacket(&data);
+
             player->ModifyMoney( pLoot->gold );
             player->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, pLoot->gold);
         }
@@ -297,8 +307,8 @@ void WorldSession::HandleLootReleaseOpcode( WorldPacket & recv_data )
     // use internal stored guid
     recv_data.read_skip<uint64>();                          // guid;
 
-    if(uint64 lguid = GetPlayer()->GetLootGUID())
-        DoLootRelease(lguid);
+    if (ObjectGuid lootGuid = GetPlayer()->GetLootGuid())
+        DoLootRelease(lootGuid);
 }
 
 void WorldSession::DoLootRelease(ObjectGuid lguid)
@@ -306,7 +316,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
     Player  *player = GetPlayer();
     Loot    *loot;
 
-    player->SetLootGUID(ObjectGuid());
+    player->SetLootGuid(ObjectGuid());
     player->SendLootRelease(lguid);
 
     player->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_LOOTING);
@@ -495,7 +505,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
     }
 
     //Player is not looking at loot list, he doesn't need to see updates on the loot list
-    loot->RemoveLooter(player->GetGUID());
+    loot->RemoveLooter(player->GetObjectGuid());
 }
 
 void WorldSession::HandleLootMasterGiveOpcode( WorldPacket & recv_data )
@@ -508,7 +518,7 @@ void WorldSession::HandleLootMasterGiveOpcode( WorldPacket & recv_data )
 
     if (!_player->GetGroup() || _player->GetGroup()->GetLooterGuid() != _player->GetObjectGuid())
     {
-        _player->SendLootRelease(GetPlayer()->GetLootGUID());
+        _player->SendLootRelease(GetPlayer()->GetLootGuid());
         return;
     }
 
@@ -518,7 +528,7 @@ void WorldSession::HandleLootMasterGiveOpcode( WorldPacket & recv_data )
 
     DEBUG_LOG("WorldSession::HandleLootMasterGiveOpcode (CMSG_LOOT_MASTER_GIVE, 0x02A3) Target = %s [%s].", target_playerguid.GetString().c_str(), target->GetName());
 
-    if (_player->GetLootGUID() != lootguid.GetRawValue())
+    if (_player->GetLootGuid() != lootguid)
         return;
 
     Loot *pLoot = NULL;

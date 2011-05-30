@@ -108,6 +108,25 @@ void Object::SetObjectScale(float newScale)
     SetFloatValue(OBJECT_FIELD_SCALE_X, newScale);
 }
 
+void Object::SendForcedObjectUpdate()
+{
+    if (!m_inWorld || !m_objectUpdated)
+        return;
+
+    UpdateDataMapType update_players;
+
+    BuildUpdateData(update_players);
+    RemoveFromClientUpdateList();
+
+    WorldPacket packet;                                     // here we allocate a std::vector with a size of 0x10000
+    for(UpdateDataMapType::iterator iter = update_players.begin(); iter != update_players.end(); ++iter)
+    {
+        iter->second.BuildPacket(&packet);
+        iter->first->GetSession()->SendPacket(&packet);
+        packet.clear();                                     // clean the string
+    }
+}
+
 void Object::BuildMovementUpdateBlock(UpdateData * data, uint16 flags ) const
 {
     ByteBuffer buf(500);
@@ -213,7 +232,7 @@ void Object::BuildValuesUpdateBlockForPlayer(UpdateData *data, Player *target) c
 
 void Object::BuildOutOfRangeUpdateBlock(UpdateData * data) const
 {
-    data->AddOutOfRangeGUID(GetGUID());
+    data->AddOutOfRangeGUID(GetObjectGuid());
 }
 
 void Object::DestroyForPlayer( Player *target, bool anim ) const
@@ -511,7 +530,7 @@ void Object::BuildMovementUpdate(ByteBuffer * data, uint16 updateFlags) const
     // 0x200
     if(updateFlags & UPDATEFLAG_ROTATION)
     {
-        *data << uint64(((GameObject*)this)->GetRotation());
+        *data << int64(((GameObject*)this)->GetRotation());
     }
 }
 
@@ -575,8 +594,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer * data, UpdateMask *
             {
                 if (index == UNIT_NPC_FLAGS)
                 {
-                    // remove custom flag before sending
-                    uint32 appendValue = m_uint32Values[index] & ~UNIT_NPC_FLAG_GUARD;
+                    uint32 appendValue = m_uint32Values[index];
 
                     if (GetTypeId() == TYPEID_UNIT)
                     {
@@ -603,7 +621,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer * data, UpdateMask *
                     if (IsPerCasterAuraState)
                     {
                         // IsPerCasterAuraState set if related pet caster aura state set already
-                        if (((Unit*)this)->HasAuraStateForCaster(AURA_STATE_CONFLAGRATE,target->GetGUID()))
+                        if (((Unit*)this)->HasAuraStateForCaster(AURA_STATE_CONFLAGRATE, target->GetObjectGuid()))
                             *data << m_uint32Values[index];
                         else
                             *data << (m_uint32Values[index] & ~(1 << (AURA_STATE_CONFLAGRATE-1)));
@@ -1571,7 +1589,7 @@ void WorldObject::BuildMonsterChat(WorldPacket *data, uint8 msgtype, char const*
     *data << uint32(strlen(name)+1);
     *data << name;
     *data << ObjectGuid(targetGuid);                        // Unit Target
-    if (!targetGuid.IsEmpty() && !targetGuid.IsPlayer())
+    if (targetGuid && !targetGuid.IsPlayer())
     {
         *data << uint32(strlen(targetName)+1);              // target name length
         *data << targetName;                                // target name
@@ -1605,17 +1623,17 @@ void WorldObject::SendMessageToSetExcept(WorldPacket *data, Player const* skippe
     }
 }
 
-void WorldObject::SendObjectDeSpawnAnim(uint64 guid)
+void WorldObject::SendObjectDeSpawnAnim(ObjectGuid guid)
 {
     WorldPacket data(SMSG_GAMEOBJECT_DESPAWN_ANIM, 8);
-    data << uint64(guid);
+    data << ObjectGuid(guid);
     SendMessageToSet(&data, true);
 }
 
-void WorldObject::SendGameObjectCustomAnim(uint64 guid)
+void WorldObject::SendGameObjectCustomAnim(ObjectGuid guid)
 {
     WorldPacket data(SMSG_GAMEOBJECT_CUSTOM_ANIM, 8+4);
-    data << uint64(guid);
+    data << ObjectGuid(guid);
     data << uint32(0);                                      // not known what this is
     SendMessageToSet(&data, true);
 }

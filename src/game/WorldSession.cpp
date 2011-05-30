@@ -20,7 +20,7 @@
     \ingroup u2w
 */
 
-#include "WorldSocket.h"                                   // must be first to make ACE happy with ACE includes in it
+#include "WorldSocket.h"                                    // must be first to make ACE happy with ACE includes in it
 #include "Common.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
@@ -240,10 +240,10 @@ bool WorldSession::Update(PacketFilter& updater)
 
                     // lag can cause STATUS_LOGGEDIN opcodes to arrive after the player started a transfer
 
-					// playerbot mod
-					if (_player && _player->GetPlayerbotMgr())
-						_player->GetPlayerbotMgr()->HandleMasterIncomingPacket(*packet);
-					// playerbot mod end
+                    // playerbot mod
+                    if (_player && _player->GetPlayerbotMgr())
+                        _player->GetPlayerbotMgr()->HandleMasterIncomingPacket(*packet);
+                    // playerbot mod end
                     break;
                 case STATUS_LOGGEDIN_OR_RECENTLY_LOGGEDOUT:
                     if(!_player && !m_playerRecentlyLogout)
@@ -382,8 +382,8 @@ void WorldSession::LogoutPlayer(bool Save)
 
         sLog.outChar("Account: %d (IP: %s) Logout Character:[%s] (guid: %u)", GetAccountId(), GetRemoteAddress().c_str(), _player->GetName() ,_player->GetGUIDLow());
 
-        if (uint64 lguid = GetPlayer()->GetLootGUID())
-            DoLootRelease(lguid);
+        if (ObjectGuid lootGuid = GetPlayer()->GetLootGuid())
+            DoLootRelease(lootGuid);
 
         ///- If the player just died before logging out, make him appear as a ghost
         //FIXME: logout must be delayed in case lost connection with client in time of combat
@@ -467,10 +467,10 @@ void WorldSession::LogoutPlayer(bool Save)
         ///- Reset the online field in the account table
         // no point resetting online in character table here as Player::SaveToDB() will set it to 1 since player has not been removed from world at this stage
         // No SQL injection as AccountID is uint32
+        static SqlStatementID id;
+
         if (! _player->GetPlayerbotAI())
         {
-            static SqlStatementID id;
-
             SqlStatement stmt = LoginDatabase.CreateStatement(id, "UPDATE account SET active_realm_id = ? WHERE id = ?");
             stmt.PExecute(uint32(0), GetAccountId());
         }
@@ -484,7 +484,7 @@ void WorldSession::LogoutPlayer(bool Save)
                 slot->UpdateLogoutTime();
             }
 
-            guild->BroadcastEvent(GE_SIGNED_OFF, _player->GetGUID(), _player->GetName());
+            guild->BroadcastEvent(GE_SIGNED_OFF, _player->GetObjectGuid(), _player->GetName());
         }
 
         ///- Remove pet
@@ -493,17 +493,7 @@ void WorldSession::LogoutPlayer(bool Save)
         ///- empty buyback items and save the player in the database
         // some save parts only correctly work in case player present in map/player_lists (pets, etc)
         if(Save)
-        {
-            uint32 eslot;
-            for(int j = BUYBACK_SLOT_START; j < BUYBACK_SLOT_END; ++j)
-            {
-                eslot = j - BUYBACK_SLOT_START;
-                _player->SetUInt64Value(PLAYER_FIELD_VENDORBUYBACK_SLOT_1 + (eslot * 2), 0);
-                _player->SetUInt32Value(PLAYER_FIELD_BUYBACK_PRICE_1 + eslot, 0);
-                _player->SetUInt32Value(PLAYER_FIELD_BUYBACK_TIMESTAMP_1 + eslot, 0);
-            }
             _player->SaveToDB();
-        }
 
         ///- Leave all channels before player delete...
         _player->CleanupChannels();
@@ -524,7 +514,7 @@ void WorldSession::LogoutPlayer(bool Save)
         sSocialMgr.SendFriendStatus(_player, FRIEND_OFFLINE, _player->GetObjectGuid(), true);
         sSocialMgr.RemovePlayerSocial (_player->GetGUIDLow ());
 
-		// Playerbot - remember player GUID for update SQL below
+        // Playerbot - remember player GUID for update SQL below
         uint32 guid = _player->GetGUIDLow();
 
         ///- Remove the player from the world
@@ -550,7 +540,7 @@ void WorldSession::LogoutPlayer(bool Save)
 
         static SqlStatementID updChars;
 
-        // Playerbot mod: commented out above and do this one instead
+        // Playerbot mod: set for only character instead of accountid
         SqlStatement stmt = CharacterDatabase.CreateStatement(updChars, "UPDATE characters SET online = 0 WHERE guid = ?");
         stmt.PExecute(guid);
 

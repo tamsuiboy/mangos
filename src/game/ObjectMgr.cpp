@@ -148,8 +148,7 @@ ObjectMgr::ObjectMgr() :
     m_EquipmentSetIds("Equipment set ids"),
     m_GuildIds("Guild ids"),
     m_MailIds("Mail ids"),
-    m_PetNumbers("Pet numbers"),
-    m_GroupIds("Group ids")
+    m_PetNumbers("Pet numbers")
 {
     // Only zero condition left, others will be added while loading DB tables
     mConditions.resize(1);
@@ -1514,6 +1513,18 @@ void ObjectMgr::LoadGameobjects()
         int16 GuidPoolId    = fields[17].GetInt16();
         int16 EntryPoolId   = fields[18].GetInt16();
 
+        if (data.rotation0 < -1.0f || data.rotation0 > 1.0f)
+        {
+            sLog.outErrorDb("Table `gameobject` have gameobject (GUID: %u Entry: %u) with invalid rotation0 (%f) value, skip", guid, data.id, data.rotation0);
+            continue;
+        }
+
+        if (data.rotation1 < -1.0f || data.rotation1 > 1.0f)
+        {
+            sLog.outErrorDb("Table `gameobject` have gameobject (GUID: %u Entry: %u) with invalid rotation1 (%f) value, skip", guid, data.id, data.rotation1);
+            continue;
+        }
+
         if (data.rotation2 < -1.0f || data.rotation2 > 1.0f)
         {
             sLog.outErrorDb("Table `gameobject` have gameobject (GUID: %u Entry: %u) with invalid rotation2 (%f) value, skip", guid, data.id, data.rotation2);
@@ -1583,17 +1594,17 @@ void ObjectMgr::RemoveGameobjectFromGrid(uint32 guid, GameObjectData const* data
 }
 
 // name must be checked to correctness (if received) before call this function
-uint64 ObjectMgr::GetPlayerGUIDByName(std::string name) const
+ObjectGuid ObjectMgr::GetPlayerGuidByName(std::string name) const
 {
-    uint64 guid = 0;
+    ObjectGuid guid;
 
     CharacterDatabase.escape_string(name);
 
     // Player name safe to sending to DB (checked at login) and this function using
     QueryResult *result = CharacterDatabase.PQuery("SELECT guid FROM characters WHERE name = '%s'", name.c_str());
-    if(result)
+    if (result)
     {
-        guid = ObjectGuid(HIGHGUID_PLAYER, (*result)[0].GetUInt32()).GetRawValue();
+        guid = ObjectGuid(HIGHGUID_PLAYER, (*result)[0].GetUInt32());
 
         delete result;
     }
@@ -5476,8 +5487,6 @@ void ObjectMgr::PackGroupIds()
         bar.step();
     }
 
-    m_GroupIds.Set(groupId);
-
     sLog.outString( ">> Group Ids remapped, next group id is %u", groupId );
     sLog.outString();
 }
@@ -5572,7 +5581,7 @@ void ObjectMgr::SetHighestGuids()
     result = CharacterDatabase.Query( "SELECT MAX(groupId) FROM groups" );
     if (result)
     {
-        m_GroupIds.Set((*result)[0].GetUInt32()+1);
+        m_GroupGuids.Set((*result)[0].GetUInt32()+1);
         delete result;
     }
 

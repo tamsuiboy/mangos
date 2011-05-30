@@ -159,6 +159,9 @@
     <ClCompile Include="..\..\src\game\Mail.cpp">
       <Filter>World/Handlers</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\game\MailHandler.cpp">
+      <Filter>World/Handlers</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\game\Map.cpp">
       <Filter>World/Handlers</Filter>
     </ClCompile>
@@ -495,6 +498,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\game\playerbot\PlayerbotWarriorAI.cpp">
       <Filter>World/Handlers</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\game\vmap\BIH.cpp">
       <Filter>vmaps</Filter>
     </ClCompile>
@@ -953,6 +957,7 @@
     </ClInclude>
     <ClInclude Include="..\..\src\game\playerbot\PlayerbotWarriorAI.h">
       <Filter>World/Handlers</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\game\vmap\BIH.h">
       <Filter>vmaps</Filter>
     </ClInclude>

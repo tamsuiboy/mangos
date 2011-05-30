@@ -96,6 +96,13 @@ void WorldSession::SendShowBank(ObjectGuid guid)
     SendPacket(&data);
 }
 
+void WorldSession::SendShowMailBox(ObjectGuid guid)
+{
+    WorldPacket data(SMSG_SHOW_MAILBOX, 8);
+    data << ObjectGuid(guid);
+    SendPacket(&data);
+}
+
 void WorldSession::HandleTrainerListOpcode( WorldPacket & recv_data )
 {
     ObjectGuid guid;
@@ -855,7 +862,7 @@ void WorldSession::HandleRepairItemOpcode( WorldPacket & recv_data )
     float discountMod = _player->GetReputationPriceDiscount(unit);
 
     uint32 TotalCost = 0;
-    if (!itemGuid.IsEmpty())
+    if (itemGuid)
     {
         DEBUG_LOG("ITEM: %s repair of %s", npcGuid.GetString().c_str(), itemGuid.GetString().c_str());
 
