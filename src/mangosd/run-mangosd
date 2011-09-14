@@ -12,7 +12,9 @@ do
 	wait $pid
 	exitcode=`cat mangos-exit.log`
 	echo "Exit code = " "$exitcode"
-	#Use CLI command "server shutdown 30" to exit autorestart Script
+	# 1. Modify mangos.conf add "Ra.Enable = 1".
+	# 2. Execute "telnet mangos-server 3443" connect to Ra Console.
+	# 3. Use CLI command "server shutdown 30" to exit autorestart Script.
 	if [ "$exitcode" -eq 0 ]; then
         	echo `date` ", MaNGOS daemon ended." >> serverlog
 		echo "Goodbye!"
