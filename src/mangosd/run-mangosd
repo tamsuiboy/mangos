@@ -10,5 +10,13 @@ do
 	echo " " >> crash.log &
 	pid=`ps ax | awk '($5 ~ /mangosd/) { print $1 }'`
 	wait $pid
+	exitcode=`cat mangos-exit.log`
+	echo "Exit code = " "$exitcode"
+	#[ "$exitcode" -eq 0 ] && exit 0
+	if [ "$exitcode" -eq 0 ]; then
+        	echo `date` ", MaNGOS daemon ended." >> serverlog
+		echo "Goodbye!"
+		exit 0
+	fi
         echo `date` ", MaNGOS daemon crashed and restarted." >> serverlog
 done
