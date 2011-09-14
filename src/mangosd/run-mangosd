@@ -12,7 +12,7 @@ do
 	wait $pid
 	exitcode=`cat mangos-exit.log`
 	echo "Exit code = " "$exitcode"
-	#[ "$exitcode" -eq 0 ] && exit 0
+	#Use CLI command "server shutdown 30" to exit autorestart Script
 	if [ "$exitcode" -eq 0 ]; then
         	echo `date` ", MaNGOS daemon ended." >> serverlog
 		echo "Goodbye!"
