@@ -417,7 +417,15 @@ int Master::Run()
     }
 
     ///- Exit the process with specified return value
-    return World::GetExitCode();
+    uint8 worldExitCode = World::GetExitCode();
+    FILE* exitFile = fopen("mangos-exit.log","w");
+    fprintf(exitFile,"%d\n",worldExitCode);
+    sLog.outString( "\nWorld exit code = %d\n",worldExitCode );
+    //fprintf(exitFile,"%d",worldExitCode);
+    fflush(exitFile);
+    fclose(exitFile);
+
+    return worldExitCode;
 }
 
 /// Initialize connection to the databases
